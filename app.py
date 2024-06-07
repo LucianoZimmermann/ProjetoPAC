@@ -5,7 +5,7 @@ import pandas as pd
 import altair as alt
 
 st.set_page_config(layout="wide")
-st.title("Fujama - Castrometro")
+st.title("Fujama - Painel de Castração")
 
 connection = get_connection()
 
@@ -24,6 +24,7 @@ bairrosJgua = [
     "Tifa Martins", "Tifa Monos", "Três Rios do Norte", "Três Rios do Sul", "Vieira",
     "Vila Baependi", "Vila Lalau", "Vila Lenzi", "Vila Nova"
 ]
+
 
 def get_veterinarios():
     with connection.cursor() as cursor:
@@ -198,22 +199,30 @@ def main():
 
         st.altair_chart(chart_atendimento, use_container_width=True)
 
+
     elif page == "Filtrar Atendimentos":
+
         st.subheader("Atendimentos")
 
-        filtro = st.selectbox(label="Filtro", options=["Data", "Raça", "Bairro", "Veterinario", "Filtrar Todos"])
+        filtro = st.selectbox(label="Filtro", options=["Data", "Filtrar Todos"])
 
         if filtro == "Data":
             filtro_valor = st.date_input("Selecione a data:", key="filtro_data")
             query_atendimento = f"SELECT AT.IDATENDIMENTO, AT.DATA, AT.HORA, AN.NOME_ANIMAL, AN.RACA, AN.SEXO, V.NOME_VET, E.BAIRRO, T.NOME_TUTOR, TEL.NUMERO FROM ATENDIMENTO AT JOIN ANIMAL AN ON AT.ANIMAL_ID = AN.IDANIMAL JOIN VETERINARIO V ON AT.VETERINARIO_ID = V.IDVETERINARIO JOIN TUTOR T ON AT.TUTOR_ID = T.IDTUTOR JOIN ENDERECO E ON AT.ENDERECO_ID = E.IDENDERECO JOIN TELEFONE TEL ON AT.TELEFONE_ID = TEL.IDTELEFONE WHERE AT.DATA = '{filtro_valor}'"
+        elif filtro == "Filtrar Todos":
+            query_atendimento = (
+                "SELECT AT.IDATENDIMENTO, AT.DATA, AT.HORA, AN.NOME_ANIMAL, AN.RACA, V.NOME_VET, E.BAIRRO, T.NOME_TUTOR, TEL.NUMERO "
+                "FROM ATENDIMENTO AT "
+                "JOIN ANIMAL AN ON AT.ANIMAL_ID = AN.IDANIMAL "
+                "JOIN VETERINARIO V ON AT.VETERINARIO_ID = V.IDVETERINARIO "
+                "JOIN TUTOR T ON AT.TUTOR_ID = T.IDTUTOR "
+                "JOIN ENDERECO E ON AT.ENDERECO_ID = E.IDENDERECO "
+                "JOIN TELEFONE TEL ON AT.TELEFONE_ID = TEL.IDTELEFONE")
+
         if st.button("Filtrar Atendimentos"):
             result_atendimento = db.select_table(connection, query_atendimento)
-            data_atendimento = pd.DataFrame(result_atendimento,
-                                            columns=['ID', 'Data', 'Hora', 'Animal', 'Raça', 'Sexo', 'Veterinario',
-                                                     'Endereco', 'Tutor', 'Telefone'])
-
+            data_atendimento = pd.DataFrame(result_atendimento, columns=['ID', 'Data', 'Hora', 'Animal', 'Raça', 'Veterinario', 'Endereco', 'Tutor', 'Telefone'])
             st.write(data_atendimento)
-
 
 if __name__ == "__main__":
     main()
