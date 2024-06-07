@@ -1,6 +1,8 @@
 import Database as db
 from Database import *
 import streamlit as st
+import pandas as pd
+import altair as alt
 
 st.set_page_config(layout="wide")
 st.title("Fujama - Castrometro")
@@ -131,7 +133,70 @@ def main():
                         st.error(f"Erro ao inserir dados no banco de dados: {e}")
                 else:
                     st.warning("Por favor, preencha todos os campos obrigatórios.")
+    elif page == "Dados":
+        query_raca = "SELECT RACA, COUNT(*) FROM ANIMAL GROUP BY RACA"
+        result_raca = db.select_table(connection, query_raca)
+        data_raca = pd.DataFrame(result_raca, columns=['Raça', 'Contagem'])
 
+        query_porte = "SELECT PORTE, COUNT(*) FROM ANIMAL GROUP BY PORTE"
+        result_porte = db.select_table(connection, query_porte)
+        data_porte = pd.DataFrame(result_porte, columns=['Porte', 'Contagem'])
+
+        query_sexo = "SELECT SEXO, COUNT(*) FROM ANIMAL GROUP BY SEXO"
+        result_sexo = db.select_table(connection, query_sexo)
+        data_sexo = pd.DataFrame(result_sexo, columns=['Sexo', 'Contagem'])
+
+        query_endereco = "SELECT BAIRRO, COUNT(*) FROM ENDERECO GROUP BY BAIRRO"
+        result_endereco = db.select_table(connection, query_endereco)
+        data_endereco = pd.DataFrame(result_endereco, columns=['Bairro', 'Contagem'])
+
+        chart_raca = alt.Chart(data_raca).mark_arc().encode(
+            theta=alt.Theta(field='Contagem', type='quantitative'),
+            color=alt.Color(field='Raça', type='nominal')
+        ).properties(
+            title='Contagem de Animais por Raça'
+        )
+
+        chart_porte = alt.Chart(data_porte).mark_arc().encode(
+            theta=alt.Theta(field='Contagem', type='quantitative'),
+            color=alt.Color(field='Porte', type='nominal')
+        ).properties(
+            title='Contagem de Animais por Porte'
+        )
+
+        chart_sexo = alt.Chart(data_sexo).mark_arc().encode(
+            theta=alt.Theta(field='Contagem', type='quantitative'),
+            color=alt.Color(field='Sexo', type='nominal')
+        ).properties(
+            title='Contagem de Animais por Sexo'
+        )
+
+        chart_endereco = alt.Chart(data_endereco).mark_bar().encode(
+            x='Bairro',
+            y='Contagem'
+        ).properties(
+            title='Contagem de Endereços por Bairro'
+        )
+
+        st.altair_chart(chart_raca, use_container_width=True)
+        st.altair_chart(chart_porte, use_container_width=True)
+        st.altair_chart(chart_endereco, use_container_width=True)
+        st.altair_chart(chart_sexo, use_container_width=True)
+
+        query_year = "SELECT YEAR(DATA) AS Ano, COUNT(*) AS Contagem FROM ATENDIMENTO GROUP BY YEAR(DATA)"
+        result_atendimento = db.select_table(connection, query_year)
+        data_atendimento = pd.DataFrame(result_atendimento, columns=['Ano', 'Contagem'])
+
+        st.subheader('Contagem de Atendimentos por Ano')
+
+        chart_atendimento = alt.Chart(data_atendimento).mark_bar().encode(
+            x=alt.X('Ano:O', title='Ano'),
+            y=alt.Y('Contagem:Q', title='Contagem')
+        ).properties(
+            title='Contagem de Atendimentos por Ano'
+        )
+
+        st.altair_chart(chart_atendimento, use_container_width=True)
 
 if __name__ == "__main__":
     main()
