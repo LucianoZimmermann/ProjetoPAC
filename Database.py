@@ -2,13 +2,12 @@ import streamlit as st
 import pymysql
 from pymysql import Error
 
-
 def get_connection():
     try:
         connection = pymysql.connect(
             host='localhost',
             user='root',
-            passwd='',
+            passwd='1234',
             database='fujama'
         )
         if connection:
@@ -17,7 +16,6 @@ def get_connection():
     except Error as e:
         print(f"Erro ao conectar com o banco de dados: {e}")
         return None
-
 
 def create_all_tables(connection):
     if connection is not None:
@@ -64,14 +62,43 @@ def create_all_tables(connection):
             ")"
         )
 
+        sql_table_silvestre = (
+            "CREATE TABLE IF NOT EXISTS SILVESTRE("
+            "IDSILVESTRE INT PRIMARY KEY AUTO_INCREMENT NOT NULL,"
+            "ESPECIE VARCHAR(255) NOT NULL,"
+            "BAIRRO VARCHAR(100) NOT NULL,"
+            "DATA DATE NOT NULL,"
+            "OBS VARCHAR(255),"
+            "DELETED BOOLEAN NOT NULL DEFAULT FALSE"
+            ")"
+        )
 
+        sql_table_anual = (
+            "CREATE TABLE IF NOT EXISTS anual("
+            "IDANO INT PRIMARY KEY AUTO_INCREMENT NOT NULL,"
+            "ANO VARCHAR(4) NOT NULL,"
+            "ATENDIMENTOS INT NOT NULL,"
+            "DELETED BOOLEAN NOT NULL DEFAULT FALSE"
+            ")"
+        )
+
+        sql_table_mes = (
+            "CREATE TABLE IF NOT EXISTS mes("
+            "IDMES INT PRIMARY KEY AUTO_INCREMENT NOT NULL,"
+            "CLINICA_ID INT NOT NULL,"
+            "MOMENT DATE NOT NULL,"
+            "DELETED BOOLEAN NOT NULL DEFAULT FALSE,"
+            "ATENDIMENTOS_CAO INT NOT NULL,"
+            "ATENDIMENTOS_GATO INT NOT NULL,"
+            "FOREIGN KEY (CLINICA_ID) REFERENCES CLINICA(IDCLINICA)"
+            ")"
+        )
 
         create_table(connection, sql_table_animal)
         create_table(connection, sql_table_clinica)
         create_table(connection, sql_table_endereco)
         create_table(connection, sql_table_atendimento)
         print("Tabelas criadas com sucesso!")
-
 
 def create_table(connection, sql):
     try:
@@ -83,7 +110,6 @@ def create_table(connection, sql):
     finally:
         if cursor:
             cursor.close()
-
 
 def insert_into_table(connection, sql, params):
     try:
@@ -98,7 +124,6 @@ def insert_into_table(connection, sql, params):
         if cursor:
             cursor.close()
 
-
 def select_table(connection, query):
     try:
         with connection.cursor() as cursor:
@@ -107,3 +132,16 @@ def select_table(connection, query):
     except pymysql.MySQLError as e:
         st.error(f"Erro ao executar consulta: {e}")
         return None
+
+def soft_delete_record_atendimento(connection, table_name, record_id):
+    try:
+        cursor = connection.cursor()
+        delete_sql = f"UPDATE {table_name} SET DELETED = TRUE WHERE IDATENDIMENTO = %s"
+        print(f"Registro com Ano {record_id} marcado como deletado na tabela {table_name}.")
+        cursor.execute(delete_sql, (record_id,))
+        connection.commit()
+    except Error as e:
+        print(f"Erro ao marcar registro como deletado na tabela {table_name}: {e}")
+    finally:
+        if cursor:
+            cursor.close()

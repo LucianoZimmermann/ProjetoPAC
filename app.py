@@ -2,6 +2,9 @@ import Database as db
 from Database import *
 import streamlit as st
 from streamlit_option_menu import option_menu
+import pandas as pd
+import altair as alt
+from datetime import datetime
 
 st.set_page_config(layout="wide")
 col1, col2, col3 = st.columns(3)
@@ -47,8 +50,8 @@ def main():
 
     page = option_menu(
         "Navegação",
-        ["Página Inicial", "Programa Emergencial Cães e Gatos"],
-        icons=['house', 'check'],
+        ["Página Inicial", "Programa Emergencial Cães e Gatos", "Resgate Fauna"],
+        icons=['house', 'check', 'check', 'check'],
         menu_icon="globe",
         default_index=0,
         orientation="vertical"
@@ -71,7 +74,7 @@ def main():
 
         subpage = option_menu(
             "Atendimento Emergencial",
-            ["Cadastrar Atendimento"],
+            ["Cadastrar Atendimento", "Filtrar Atendimentos", "Deletar Atendimentos"],
             icons=['house', 'check', 'check'],
             menu_icon="menu",
             default_index=0,
@@ -154,5 +157,135 @@ def main():
                     else:
                         st.warning("Por favor, preencha todos os campos obrigatórios.")
 
+        elif subpage == "Filtrar Atendimentos":
+            st.subheader("Filtrar Atendimentos")
+            filtro = st.selectbox(label="Filtrar Atendimentos", options=["Dia", "Mês", "Ano", "Filtrar Todos"])
+
+            if filtro == "Ano":
+                year = datetime.now().year
+                ano_filtro = st.text_input(label="Ano:", key="ano_filtro", value=year)
+                query_atendimento = f"""
+                SELECT 
+                    a.IDATENDIMENTO, a.DATA, 
+                    an.NOME_ANIMAL, an.ESPECIE, an.PORTE, an.SEXO, an.CAUSA,
+                    c.NOME_CLINICA,
+                    e.RUA, e.BAIRRO,
+                    an.OBS AS OBS_ANIMAL
+                FROM atendimento a
+                JOIN animal an ON a.ANIMAL_ID = an.IDANIMAL
+                JOIN clinica c ON a.CLINICA_ID = c.IDCLINICA
+                JOIN endereco e ON a.ENDERECO_ID = e.IDENDERECO
+                WHERE YEAR(a.DATA) = '{ano_filtro}'
+                AND a.DELETED = FALSE
+                """
+
+            elif filtro == "Dia":
+                dia_filtro = st.date_input("Data do Atendimento [Obrigatório]", key="data_atendimento")
+                query_atendimento = f"""
+                SELECT 
+                    a.IDATENDIMENTO, a.DATA, 
+                    an.NOME_ANIMAL, an.ESPECIE, an.PORTE, an.SEXO, an.CAUSA,
+                    c.NOME_CLINICA,
+                    e.RUA, e.BAIRRO,
+                    an.OBS AS OBS_ANIMAL
+                FROM atendimento a
+                JOIN animal an ON a.ANIMAL_ID = an.IDANIMAL
+                JOIN clinica c ON a.CLINICA_ID = c.IDCLINICA
+                JOIN endereco e ON a.ENDERECO_ID = e.IDENDERECO
+                WHERE a.DATA = '{dia_filtro}'
+                AND a.DELETED = FALSE
+                """
+
+            elif filtro == "Mês":
+                year = datetime.now().year
+                ano_filtro = st.number_input(label="Ano:", key="ano_filtro_mes", format='%d', step=1, min_value=1900,value=year)
+                if ano_filtro != 0:
+                    mes_filtro = st.selectbox("Mês:", options=[datetime(ano_filtro, i, 1).strftime('%B') for i in range(1, 13)],key="mes_filtro")
+                    mes_num = datetime.strptime(mes_filtro, '%B').month
+                    query_atendimento = f"""
+                                    SELECT 
+                                        a.IDATENDIMENTO, a.DATA, 
+                                        an.NOME_ANIMAL, an.ESPECIE, an.PORTE, an.SEXO, an.CAUSA,
+                                        c.NOME_CLINICA,
+                                        e.RUA, e.BAIRRO,
+                                        an.OBS AS OBS_ANIMAL
+                                    FROM atendimento a
+                                    JOIN animal an ON a.ANIMAL_ID = an.IDANIMAL
+                                    JOIN clinica c ON a.CLINICA_ID = c.IDCLINICA
+                                    JOIN endereco e ON a.ENDERECO_ID = e.IDENDERECO
+                                    WHERE MONTH(a.DATA) = '{mes_num}'
+                                    AND YEAR(a.DATA) = '{ano_filtro}'
+                                    AND a.DELETED = FALSE
+                                    """
+                else:
+                    st.error("Por favor, insira um ano válido.")
+
+            elif filtro == "Filtrar Todos":
+                query_atendimento = """
+                SELECT 
+                    a.IDATENDIMENTO, a.DATA, 
+                    an.NOME_ANIMAL, an.ESPECIE, an.PORTE, an.SEXO, an.CAUSA,
+                    c.NOME_CLINICA,
+                    e.RUA, e.BAIRRO,
+                    an.OBS AS OBS_ANIMAL
+                FROM atendimento a
+                JOIN animal an ON a.ANIMAL_ID = an.IDANIMAL
+                JOIN clinica c ON a.CLINICA_ID = c.IDCLINICA
+                JOIN endereco e ON a.ENDERECO_ID = e.IDENDERECO
+                WHERE a.DELETED = FALSE
+                """
+
+            if st.button("Filtrar Atendimentos"):
+                result_atendimento = db.select_table(connection, query_atendimento)
+
+                data_atendimento = pd.DataFrame(result_atendimento,
+                                                columns=['ID Atendimento', 'Data', 'Nome Animal', 'Espécie', 'Porte',
+                                                         'Sexo', 'Causa', 'Nome Clinica', 'Rua', 'Bairro',
+                                                         'Obs Animal'])
+                st.write(data_atendimento)
+
+        elif subpage == "Deletar Atendimentos":
+
+            st.subheader("Deletar Atendimentos")
+
+            with st.form("delete_form"):
+
+                id = st.text_input(label="ID:", key="id")
+
+                consultar = st.form_submit_button("Consultar")
+
+                sql_consulta = """
+                                SELECT 
+                                    a.IDATENDIMENTO, a.DATA, 
+                                    an.NOME_ANIMAL, an.ESPECIE, an.PORTE, an.SEXO, an.CAUSA,
+                                    c.NOME_CLINICA,
+                                    e.RUA, e.BAIRRO,
+                                    an.OBS AS OBS_ANIMAL
+                                FROM atendimento a
+                                JOIN animal an ON a.ANIMAL_ID = an.IDANIMAL
+                                JOIN clinica c ON a.CLINICA_ID = c.IDCLINICA
+                                JOIN endereco e ON a.ENDERECO_ID = e.IDENDERECO
+                                WHERE a.DELETED = FALSE
+                                """
+
+                if consultar:
+                    result_atendimento = db.select_table(connection, sql_consulta)
+
+                    data_atendimento = pd.DataFrame(result_atendimento,
+                                                    columns=['ID Atendimento', 'Data', 'Nome Animal', 'Espécie',
+                                                             'Porte',
+                                                             'Sexo', 'Causa', 'Nome Clinica', 'Rua', 'Bairro',
+                                                             'Obs Animal'])
+                    st.write(data_atendimento)
+
+                deletar = st.form_submit_button("Deletar")
+
+                if deletar:
+                    soft_delete_record_atendimento(connection, 'ATENDIMENTO', record_id=id)
+
+
+
 if __name__ == "__main__":
     main()
+
+
