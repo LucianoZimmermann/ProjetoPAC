@@ -7,7 +7,7 @@ def get_connection():
         connection = pymysql.connect(
             host='localhost',
             user='root',
-            passwd='1234',
+            passwd='',
             database='fujama'
         )
         if connection:
