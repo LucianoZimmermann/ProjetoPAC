@@ -50,7 +50,7 @@ def main():
 
     page = option_menu(
         "Navegação",
-        ["Página Inicial", "Programa Emergencial Cães e Gatos", "Resgate Fauna"],
+        ["Página Inicial", "Programa Emergencial Cães e Gatos", "Resgate Fauna", "Controle Populacional/Castração"],
         icons=['house', 'check', 'check', 'check'],
         menu_icon="globe",
         default_index=0,
@@ -283,7 +283,120 @@ def main():
                 if deletar:
                     soft_delete_record_atendimento(connection, 'ATENDIMENTO', record_id=id)
 
+    elif page == "Resgate Fauna":
+        subpage = option_menu(
+            "Fauna",
+            ["Cadastrar Resgate", "Filtrar Resgates", "Deletar Resgates"],
+            icons=['check', 'check'],
+            menu_icon="globe",
+            default_index=0,
+            orientation="vertical"
+        )
 
+        if subpage == "Cadastrar Resgate":
+            st.subheader("Resgate Fauna")
+            with st.form("fauna_form"):
+                st.subheader("Cadastrar Animal Silvestre")
+                especie = st.text_input(label="Espécie do Animal", key="especie")
+                bairro = st.selectbox(label="Bairro", options=bairrosJgua)
+                data_atendimento = st.date_input("Data do Atendimento", key="data_atendimento")
+                obs = st.text_area(label="Observações", key="obs")
+
+                submit = st.form_submit_button("Salvar")
+
+                if submit:
+                    if all([especie, bairro, data_atendimento]):
+                        try:
+                            with connection.cursor() as cursor:
+                                silvestre_sql = "INSERT INTO SILVESTRE (ESPECIE, BAIRRO, DATA, OBS) VALUES (%s, %s, %s, %s)"
+                                silvestre_params = (especie, bairro, data_atendimento, obs)
+                                cursor.execute(silvestre_sql, silvestre_params)
+                                connection.commit()
+                                st.success("Atendimento cadastrado com sucesso!")
+                        except Exception as e:
+                            connection.rollback()
+                            st.error(f"Erro ao inserir dados no banco de dados: {e}")
+                    else:
+                        st.warning("Por favor, preencha todos os campos obrigatórios.")
+
+        elif subpage == "Filtrar Resgates":
+            st.subheader("Filtrar Resgates")
+            filtro = st.selectbox(label="Filtrar Resgate", options=["Dia","Mês","Ano", "Filtrar Todos"])
+
+            if filtro == "Ano":
+                year = datetime.now().year
+                ano_filtro = st.text_input(label="Ano:", key="ano_filtro", value=year)
+                query_silvestre = (f"SELECT IDSILVESTRE, DATA, ESPECIE, BAIRRO, OBS "
+                                   f"FROM SILVESTRE "
+                                   f"WHERE YEAR(DATA) = '{ano_filtro}'"
+                                   f"AND DELETED = FALSE")
+
+
+            elif filtro == "Dia":
+                dia_filtro = st.date_input("Data do Atendimento [Obrigatório]", key="data_atendimento")
+                query_silvestre = (f"SELECT IDSILVESTRE, DATA, ESPECIE, BAIRRO, OBS "
+                                   f"FROM SILVESTRE "
+                                   f"WHERE DATA = '{dia_filtro}'"
+                                   f"AND DELETED = FALSE")
+
+
+            elif filtro == "Mês":
+                ano_filtro = st.number_input(label="Ano:", key="ano_filtro_mes", format='%d', step=1, min_value=1900, value=2024)
+                if ano_filtro != 0:
+                    mes_filtro = st.selectbox("Mês:",
+                                              options=[datetime(ano_filtro, i, 1).strftime('%B') for i in range(1, 13)],key="mes_filtro")
+                    mes_num = datetime.strptime(mes_filtro, '%B').month
+
+                    query_silvestre = f"""
+                        SELECT IDSILVESTRE, DATA, ESPECIE, BAIRRO, OBS
+                        FROM SILVESTRE
+                        WHERE MONTH(DATA) = '{mes_num}' 
+                        AND YEAR(DATA) = '{ano_filtro}'
+                        AND DELETED = FALSE
+                        """
+                else:
+                    st.error("Por favor, insira um ano válido.")
+
+            elif filtro == "Filtrar Todos":
+                    query_silvestre = ("SELECT IDSILVESTRE, DATA, ESPECIE, BAIRRO, OBS "
+                                       "FROM SILVESTRE "
+                                       "WHERE DELETED = FALSE")
+
+            if st.button("Filtrar Atendimentos"):
+                result_atendimento = db.select_table(connection, query_silvestre)
+
+                data_atendimento = pd.DataFrame(result_atendimento,
+                                                columns=['ID', 'Data', 'Espécie', 'Bairro', 'OBS'])
+                st.write(data_atendimento)
+
+        elif subpage == "Deletar Resgates":
+
+            st.subheader("Deletar Resgates")
+
+            with st.form("delete_form"):
+
+                id = st.text_input(label="ID:", key="id")
+
+                consultar = st.form_submit_button("Consultar")
+
+                sql_consulta = f"""
+                                    SELECT IDSILVESTRE, DATA, ESPECIE, BAIRRO, OBS 
+                                    FROM SILVESTRE 
+                                    WHERE IDSILVESTRE = '{id}'
+                                    AND DELETED = FALSE
+                                    """
+
+                if consultar:
+                    result_atendimento = db.select_table(connection, sql_consulta)
+
+                    data_atendimento = pd.DataFrame(result_atendimento,
+                                                    columns=['ID', 'Data', 'Espécie', 'Bairro', 'OBS'])
+                    st.write(data_atendimento)
+
+                deletar = st.form_submit_button("Deletar")
+
+                if deletar:
+                    soft_delete_record_silvestre(connection, 'SILVESTRE', record_id=id)
 
 if __name__ == "__main__":
     main()

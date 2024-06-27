@@ -98,6 +98,9 @@ def create_all_tables(connection):
         create_table(connection, sql_table_clinica)
         create_table(connection, sql_table_endereco)
         create_table(connection, sql_table_atendimento)
+        create_table(connection, sql_table_silvestre)
+        create_table(connection, sql_table_anual)
+        create_table(connection, sql_table_mes)
         print("Tabelas criadas com sucesso!")
 
 def create_table(connection, sql):
@@ -133,11 +136,37 @@ def select_table(connection, query):
         st.error(f"Erro ao executar consulta: {e}")
         return None
 
+def soft_delete_record_silvestre(connection, table_name, record_id):
+    try:
+        cursor = connection.cursor()
+        delete_sql = f"UPDATE {table_name} SET DELETED = TRUE WHERE IDSILVESTRE = %s"
+        print(f"Registro com ID {record_id} marcado como deletado na tabela {table_name}.")
+        cursor.execute(delete_sql, (record_id,))
+        connection.commit()
+    except Error as e:
+        print(f"Erro ao marcar registro como deletado na tabela {table_name}: {e}")
+    finally:
+        if cursor:
+            cursor.close()
+
 def soft_delete_record_atendimento(connection, table_name, record_id):
     try:
         cursor = connection.cursor()
         delete_sql = f"UPDATE {table_name} SET DELETED = TRUE WHERE IDATENDIMENTO = %s"
         print(f"Registro com Ano {record_id} marcado como deletado na tabela {table_name}.")
+        cursor.execute(delete_sql, (record_id,))
+        connection.commit()
+    except Error as e:
+        print(f"Erro ao marcar registro como deletado na tabela {table_name}: {e}")
+    finally:
+        if cursor:
+            cursor.close()
+
+def soft_delete_record_anual(connection, table_name, record_id):
+    try:
+        cursor = connection.cursor()
+        delete_sql = f"UPDATE {table_name} SET DELETED = TRUE WHERE ANO = %s"
+        print(f"Registro com ANO {record_id} marcado como deletado na tabela {table_name}.")
         cursor.execute(delete_sql, (record_id,))
         connection.commit()
     except Error as e:
